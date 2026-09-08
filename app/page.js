@@ -29,7 +29,7 @@ export default async function HomePage() {
         自動運転デイリーニュース
       </h1>
       <p style={{ fontSize: 13, color: "#6B6B68", marginBottom: 20 }}>
-        Googleニュースから自動運転関連の最新ニュースを毎日自動取得します(最小構成版)。
+        Googleニュース(日本語・英語)から自動運転関連の最新ニュースを毎日自動取得します。
       </p>
 
       {!data && (
@@ -67,6 +67,9 @@ export default async function HomePage() {
                 background: "#fff",
               }}
             >
+              <div style={{ fontSize: 11, marginBottom: 6 }}>
+                {n.lang === "ja" ? "🇯🇵 日本語" : "🇺🇸 English"}
+              </div>
               <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.5 }}>{n.title}</div>
               <div style={{ fontSize: 12, color: "#9A9A97", marginTop: 6 }}>
                 {n.source} ／ {n.date}
@@ -94,4 +97,4 @@ export default async function HomePage() {
       )}
     </main>
   );
-        }
+}
