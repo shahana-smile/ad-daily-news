@@ -11,7 +11,9 @@ const RSS_URL_EN =
 const RSS_URL_JA =
   "https://news.google.com/rss/search?q=%E8%87%AA%E5%8B%95%E9%81%8B%E8%BB%A2&hl=ja&gl=JP&ceid=JP:ja";
 
-/* ==== 分類ルール(英語・カタカナ・漢字に対応) ==== */
+const MAX_PER_FOLDER = 100;
+
+/* ==== 分類ルール ==== */
 const PLATFORMERS = [
   { key: "uber", label: "Uber", words: ["uber", "ウーバー"] },
   { key: "didi", label: "DiDi", words: ["didi", "滴滴", "ディディ"] },
@@ -111,6 +113,31 @@ async function fetchAndParse(url, lang) {
   }));
 }
 
+/* ==== フォルダへの蓄積 ==== */
+function archiveKey(category, folder) {
+  return `archive:${category}:${folder}`;
+}
+
+async function appendToFolder(item) {
+  const key = archiveKey(item.category, item.folder);
+  const existing = (await redis.get(key)) || [];
+
+  // 同じリンクの記事が既にあれば追加しない(重複防止)
+  const alreadyExists = existing.some((e) => e.link === item.link);
+  if (alreadyExists) return false;
+
+  const updated = [item, ...existing].slice(0, MAX_PER_FOLDER);
+  await redis.set(key, updated);
+  return true;
+}
+
+async function updateIndex(category, folder, folderLabel) {
+  const index = (await redis.get("archive:index")) || {};
+  if (!index[category]) index[category] = {};
+  index[category][folder] = folderLabel;
+  await redis.set("archive:index", index);
+}
+
 export async function GET() {
   try {
     const [jaItems, enItems] = await Promise.all([
@@ -119,14 +146,23 @@ export async function GET() {
     ]);
     const items = [...jaItems, ...enItems].map((it) => ({ ...it, ...classify(it) }));
 
+    // 今日の一覧(トップページ表示用)はこれまで通り上書き保存
     await redis.set("daily-news", {
       items,
       updatedAt: new Date().toISOString(),
     });
 
-    return NextResponse.json({ ok: true, count: items.length, items });
+    // フォルダへの蓄積
+    let addedCount = 0;
+    for (const item of items) {
+      const added = await appendToFolder(item);
+      if (added) addedCount++;
+      await updateIndex(item.category, item.folder, item.folderLabel);
+    }
+
+    return NextResponse.json({ ok: true, count: items.length, added: addedCount, items });
   } catch (e) {
     console.error("fetch-news error:", e);
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
-    }
+                                      }
