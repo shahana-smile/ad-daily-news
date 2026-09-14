@@ -12,10 +12,10 @@ const MAX_PER_FOLDER = 100;
 const RSS_SOURCES = [
   { country: "JP", lang: "ja", query: "自動運転", hl: "ja", gl: "JP", ceid: "JP:ja" },
   { country: "US", lang: "en", query: "autonomous driving", hl: "en-US", gl: "US", ceid: "US:en" },
-  { country: "CN", lang: "zh", query: "自动驾驶", hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans" },
-  { country: "DE", lang: "de", query: "autonomes Fahren", hl: "de", gl: "DE", ceid: "DE:de" },
-  { country: "FR", lang: "fr", query: "conduite autonome", hl: "fr", gl: "FR", ceid: "FR:fr" },
-  { country: "KR", lang: "ko", query: "자율주행", hl: "ko", gl: "KR", ceid: "KR:ko" },
+  //{ country: "CN", lang: "zh", query: "自动驾驶", hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans" },
+  //{ country: "DE", lang: "de", query: "autonomes Fahren", hl: "de", gl: "DE", ceid: "DE:de" },
+  //{ country: "FR", lang: "fr", query: "conduite autonome", hl: "fr", gl: "FR", ceid: "FR:fr" },
+  //{ country: "KR", lang: "ko", query: "자율주행", hl: "ko", gl: "KR", ceid: "KR:ko" },
 ];
 
 const COUNTRY_LABELS = { JP: "日本", US: "米国", CN: "中国", DE: "ドイツ", FR: "フランス", KR: "韓国" };
