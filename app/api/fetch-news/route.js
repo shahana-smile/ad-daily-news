@@ -6,12 +6,19 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-const RSS_URL_EN =
-  "https://news.google.com/rss/search?q=autonomous+driving&hl=en-US&gl=US&ceid=US:en";
-const RSS_URL_JA =
-  "https://news.google.com/rss/search?q=%E8%87%AA%E5%8B%95%E9%81%8B%E8%BB%A2&hl=ja&gl=JP&ceid=JP:ja";
-
 const MAX_PER_FOLDER = 100;
+
+/* ==== 取得元(6ヶ国) ==== */
+const RSS_SOURCES = [
+  { country: "JP", lang: "ja", query: "自動運転", hl: "ja", gl: "JP", ceid: "JP:ja" },
+  { country: "US", lang: "en", query: "autonomous driving", hl: "en-US", gl: "US", ceid: "US:en" },
+  { country: "CN", lang: "zh", query: "自动驾驶", hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans" },
+  { country: "DE", lang: "de", query: "autonomes Fahren", hl: "de", gl: "DE", ceid: "DE:de" },
+  { country: "FR", lang: "fr", query: "conduite autonome", hl: "fr", gl: "FR", ceid: "FR:fr" },
+  { country: "KR", lang: "ko", query: "자율주행", hl: "ko", gl: "KR", ceid: "KR:ko" },
+];
+
+const COUNTRY_LABELS = { JP: "日本", US: "米国", CN: "中国", DE: "ドイツ", FR: "フランス", KR: "韓国" };
 
 /* ==== 分類ルール ==== */
 const PLATFORMERS = [
@@ -73,8 +80,8 @@ function classify(item) {
   const lower = title.toLowerCase();
   const isPromo = PROMO_WORDS.some((w) => lower.includes(w.toLowerCase()) || title.includes(w));
   if (isPromo) {
-    const country = item.lang === "ja" ? "japan" : "global";
-    return { category: "promotion", folder: country, folderLabel: item.lang === "ja" ? "日本" : "海外" };
+    const c = item.country || "US";
+    return { category: "promotion", folder: c.toLowerCase(), folderLabel: COUNTRY_LABELS[c] || c };
   }
 
   return { category: "other", folder: "other", folderLabel: "その他" };
@@ -97,19 +104,22 @@ function parseRss(xml) {
   }));
 }
 
-async function fetchAndParse(url, lang) {
+async function fetchAndParse(src) {
+  const url =
+    `https://news.google.com/rss/search?q=${encodeURIComponent(src.query)}&hl=${src.hl}&gl=${src.gl}&ceid=${src.ceid}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; ADDailyNewsBot/0.1)" },
   });
-  if (!res.ok) throw new Error("RSS fetch failed (" + lang + "): " + res.status);
+  if (!res.ok) throw new Error(`RSS fetch failed (${src.country}): ${res.status}`);
   const xml = await res.text();
   const items = parseRss(xml);
-  return items.slice(0, 3).map((it) => ({
+  return items.slice(0, 20).map((it) => ({
     title: it.title || "(タイトル不明)",
     source: it.source || "不明",
     date: it.pubDate || "不明",
     link: it.link || "",
-    lang,
+    lang: src.lang,
+    country: src.country,
   }));
 }
 
@@ -121,11 +131,8 @@ function archiveKey(category, folder) {
 async function appendToFolder(item) {
   const key = archiveKey(item.category, item.folder);
   const existing = (await redis.get(key)) || [];
-
-  // 同じリンクの記事が既にあれば追加しない(重複防止)
   const alreadyExists = existing.some((e) => e.link === item.link);
   if (alreadyExists) return false;
-
   const updated = [item, ...existing].slice(0, MAX_PER_FOLDER);
   await redis.set(key, updated);
   return true;
@@ -140,19 +147,14 @@ async function updateIndex(category, folder, folderLabel) {
 
 export async function GET() {
   try {
-    const [jaItems, enItems] = await Promise.all([
-      fetchAndParse(RSS_URL_JA, "ja"),
-      fetchAndParse(RSS_URL_EN, "en"),
-    ]);
-    const items = [...jaItems, ...enItems].map((it) => ({ ...it, ...classify(it) }));
+    const results = await Promise.all(RSS_SOURCES.map((src) => fetchAndParse(src)));
+    const items = results.flat().map((it) => ({ ...it, ...classify(it) }));
 
-    // 今日の一覧(トップページ表示用)はこれまで通り上書き保存
     await redis.set("daily-news", {
       items,
       updatedAt: new Date().toISOString(),
     });
 
-    // フォルダへの蓄積
     let addedCount = 0;
     for (const item of items) {
       const added = await appendToFolder(item);
@@ -160,9 +162,9 @@ export async function GET() {
       await updateIndex(item.category, item.folder, item.folderLabel);
     }
 
-    return NextResponse.json({ ok: true, count: items.length, added: addedCount, items });
+    return NextResponse.json({ ok: true, count: items.length, added: addedCount });
   } catch (e) {
     console.error("fetch-news error:", e);
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
-                                      }
+}
