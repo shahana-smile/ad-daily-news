@@ -11,42 +11,38 @@ const RSS_URL_EN =
 const RSS_URL_JA =
   "https://news.google.com/rss/search?q=%E8%87%AA%E5%8B%95%E9%81%8B%E8%BB%A2&hl=ja&gl=JP&ceid=JP:ja";
 
-/* ==== 分類ルール ==== */
-// プラットフォーマー(配車サービス)
+/* ==== 分類ルール(英語・カタカナ・漢字に対応) ==== */
 const PLATFORMERS = [
-  { key: "uber", label: "Uber", words: ["uber"] },
-  { key: "didi", label: "DiDi", words: ["didi", "滴滴"] },
-  { key: "grab", label: "Grab", words: ["grab"] },
-  { key: "lyft", label: "Lyft", words: ["lyft"] },
-  { key: "ola", label: "Ola", words: ["ola cabs", " ola "] },
-  { key: "bolt", label: "Bolt", words: ["bolt"] },
-  { key: "careem", label: "Careem", words: ["careem"] },
+  { key: "uber", label: "Uber", words: ["uber", "ウーバー"] },
+  { key: "didi", label: "DiDi", words: ["didi", "滴滴", "ディディ"] },
+  { key: "grab", label: "Grab", words: ["grab", "グラブ"] },
+  { key: "lyft", label: "Lyft", words: ["lyft", "リフト"] },
+  { key: "ola", label: "Ola", words: ["ola cabs", " ola ", "オラキャブズ"] },
+  { key: "bolt", label: "Bolt", words: ["bolt technology", "ボルト(配車)"] },
+  { key: "careem", label: "Careem", words: ["careem", "カリーム"] },
 ];
 
-// ADK(自動運転キット)メーカー
 const ADK_MAKERS = [
-  { key: "waymo", label: "Waymo", words: ["waymo"] },
-  { key: "mobileye", label: "Mobileye", words: ["mobileye"] },
-  { key: "nvidia", label: "NVIDIA", words: ["nvidia"] },
-  { key: "zoox", label: "Zoox", words: ["zoox"] },
-  { key: "weride", label: "WeRide", words: ["weride"] },
-  { key: "ponyai", label: "Pony.ai", words: ["pony.ai", "pony ai"] },
-  { key: "apollo", label: "Baidu Apollo", words: ["apollo go", "baidu"] },
+  { key: "waymo", label: "Waymo", words: ["waymo", "ウェイモ"] },
+  { key: "mobileye", label: "Mobileye", words: ["mobileye", "モービルアイ", "モビルアイ"] },
+  { key: "nvidia", label: "NVIDIA", words: ["nvidia", "エヌビディア"] },
+  { key: "zoox", label: "Zoox", words: ["zoox", "ズークス"] },
+  { key: "weride", label: "WeRide", words: ["weride", "文远知行", "ウィーライド"] },
+  { key: "ponyai", label: "Pony.ai", words: ["pony.ai", "pony ai", "小马智行", "ポニーエーアイ"] },
+  { key: "apollo", label: "Baidu Apollo", words: ["apollo go", "baidu", "百度", "バイドゥ"] },
 ];
 
-// OEM(自動車メーカー)
 const OEM_MAKERS = [
-  { key: "toyota", label: "トヨタ", words: ["toyota", "トヨタ"] },
-  { key: "honda", label: "ホンダ", words: ["honda", "ホンダ"] },
-  { key: "nissan", label: "日産", words: ["nissan", "日産"] },
-  { key: "tesla", label: "Tesla", words: ["tesla"] },
-  { key: "byd", label: "BYD", words: ["byd"] },
-  { key: "jaguar", label: "Jaguar", words: ["jaguar"] },
-  { key: "lucid", label: "Lucid", words: ["lucid"] },
-  { key: "gac", label: "GAC", words: ["gac motor", " gac "] },
+  { key: "toyota", label: "トヨタ", words: ["toyota", "トヨタ", "豊田"] },
+  { key: "honda", label: "ホンダ", words: ["honda", "ホンダ", "本田"] },
+  { key: "nissan", label: "日産", words: ["nissan", "日産", "ニッサン"] },
+  { key: "tesla", label: "Tesla", words: ["tesla", "テスラ"] },
+  { key: "byd", label: "BYD", words: ["byd", "比亚迪", "ビーワイディー"] },
+  { key: "jaguar", label: "Jaguar", words: ["jaguar", "ジャガー"] },
+  { key: "lucid", label: "Lucid", words: ["lucid", "ルーシッド", "ルシッド"] },
+  { key: "gac", label: "GAC", words: ["gac motor", " gac ", "広汽", "広汽汽車"] },
 ];
 
-// 走行プロモーション判定用キーワード(該当すれば国別フォルダへ)
 const PROMO_WORDS = ["test drive", "pilot", "demo", "trial", "launch", "expands", "expansion",
   "試乗", "実証実験", "実証", "デモ", "拡大", "開始"];
 
@@ -54,7 +50,7 @@ function matchMaker(title, list) {
   const lower = title.toLowerCase();
   for (const m of list) {
     for (const w of m.words) {
-      if (lower.includes(w.toLowerCase())) return m;
+      if (lower.includes(w.toLowerCase()) || title.includes(w)) return m;
     }
   }
   return null;
@@ -73,7 +69,7 @@ function classify(item) {
   if (oem) return { category: "oem", folder: oem.key, folderLabel: oem.label };
 
   const lower = title.toLowerCase();
-  const isPromo = PROMO_WORDS.some((w) => lower.includes(w.toLowerCase()));
+  const isPromo = PROMO_WORDS.some((w) => lower.includes(w.toLowerCase()) || title.includes(w));
   if (isPromo) {
     const country = item.lang === "ja" ? "japan" : "global";
     return { category: "promotion", folder: country, folderLabel: item.lang === "ja" ? "日本" : "海外" };
@@ -133,4 +129,4 @@ export async function GET() {
     console.error("fetch-news error:", e);
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
-}
+    }
